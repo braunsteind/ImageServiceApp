@@ -16,12 +16,11 @@ public class MainActivity extends AppCompatActivity {
 
     public void startService(View view) {
         Intent intent = new Intent(this, ImageService.class);
-
-        Button start_button = (Button) findViewById(R.id.StartService);
-//        Button stop_button = (Button) findViewById(R.id.stopService_b);
-        start_button.setVisibility(View.VISIBLE);
-//        stop_button.setVisibility(View.VISIBLE);
-
         startService(intent);
+    }
+
+    public void stopService(View view) {
+        Intent intent = new Intent(this, ImageService.class);
+        stopService(intent);
     }
 }
