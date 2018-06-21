@@ -16,6 +16,7 @@ import android.os.IBinder;
 import android.support.annotation.Nullable;
 import android.support.annotation.RequiresApi;
 import android.support.v4.app.NotificationCompat;
+import android.util.Log;
 import android.widget.Toast;
 
 import java.io.File;
@@ -68,7 +69,7 @@ public class ImageService extends Service {
         channel.setDescription("Image Service Progress Bar");
         NM.createNotificationChannel(channel);
         builder.setSmallIcon(R.drawable.ic_launcher_background);
-        builder.setContentTitle("Transferring Pictures...");
+//        builder.setContentTitle("Transferring Pictures...");
         builder.setContentText("Passing...");
         //start the transfer
         new Thread(new Runnable() {
@@ -80,19 +81,19 @@ public class ImageService extends Service {
                 for (File file : files) {
                     //set communication
                     Communication communication = new Communication(file);
+                    //try to start communication
                     try {
                         communication.startCommunication();
                     } catch (Exception e) {
+                        Log.e(this.getClass().getSimpleName(), e.getMessage());
                     }
                     //monitor the percent of the bar
                     percent = percent + 100 / files.size();
                     builder.setProgress(100, percent, false);
                     NM.notify(id, builder.build());
                 }
-                //finish
                 builder.setProgress(0, 0, false);
-                builder.setContentTitle("Done!");
-                builder.setContentText("Done!");
+                builder.setContentText("Done Transferring Pictures!");
                 NM.notify(id, builder.build());
             }
         }).start();
@@ -107,15 +108,15 @@ public class ImageService extends Service {
 
     @Override
     public void onDestroy() {
-        Toast.makeText(this, "Stoping Service", Toast.LENGTH_LONG).show();
+        Toast.makeText(this, "Stopping Service", Toast.LENGTH_LONG).show();
         this.unregisterReceiver(this.broadcastReceiver);
     }
 
-    public void getOneFile(File directory, List<File> pictures) {
+    public void getPicturesFromDir(File directory, List<File> pictures) {
         File[] filesArray = directory.listFiles();
         for (File file : filesArray) {
             if (file.isDirectory()) {
-                getOneFile(file, pictures);
+                getPicturesFromDir(file, pictures);
             } else if (file.toString().contains(".jpg")) {
                 pictures.add(file);
             }
@@ -123,18 +124,18 @@ public class ImageService extends Service {
     }
 
     public void updatePictures() {
-        List<File> pictures = new LinkedList<File>();
-        File dcim = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DCIM);
+        List<File> pictures = new LinkedList<>();
+        File dataCenter = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DCIM);
         //set the files
-        File[] filesArray = dcim.listFiles();
+        File[] filesArray = dataCenter.listFiles();
         //check filesArray isn't null
         if (filesArray != null) {
             //check for each file in files array
             for (File file : filesArray) {
                 //for directory
                 if (file.isDirectory()) {
-                    //search for picutres there
-                    getOneFile(file, pictures);
+                    //search for pictures there
+                    getPicturesFromDir(file, pictures);
                 }
                 //for picture
                 else if (file.toString().contains(".jpg")) {

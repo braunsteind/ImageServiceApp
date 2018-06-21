@@ -1,13 +1,10 @@
 package com.example.daniel.imageserviceapp;
 
-import android.app.NotificationManager;
-import android.support.v4.app.NotificationCompat;
 import android.util.Log;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.InetAddress;
@@ -16,40 +13,35 @@ import java.net.Socket;
 public class Communication {
     File file;
 
-    public Communication(File myFile) {
-        file = myFile;
+    public Communication(File file) {
+        this.file = file;
     }
 
     public void startCommunication() throws Exception {
-
         try {
-            //here you must put your computer's IP address.
-            InetAddress serverAddr = InetAddress.getByName("10.0.2.2");
+            InetAddress serverAddress = InetAddress.getByName("10.0.2.2");
             try {
-                //create a socket to make the connection with the server
-                Socket socket = new Socket(serverAddr, 7999);
+                Socket socket = new Socket(serverAddress, 7999);
                 OutputStream output = socket.getOutputStream();
                 InputStream input = socket.getInputStream();
-                //write image name to server
+                //write to server
                 output.write(file.getName().getBytes());
-                //confirm from server he got the name
-                byte[] confirmation = new byte[1];
-                //write image to server
-                if (input.read(confirmation) == 1) {
-                    output.write(extractBytes(file));
+                //confirm
+                byte[] confirm = new byte[1];
+                if (input.read(confirm) == 1) {
+                    //write to server
+                    output.write(getBytes(file));
                 }
                 output.flush();
             } catch (Exception e) {
-                Log.e("TCP", "S: Error", e);
-            } finally {
-                //socket.close();
+                Log.e(this.getClass().getSimpleName(), e.getMessage());
             }
         } catch (Exception e) {
-            Log.e("TCP", "C: Error", e);
+            Log.e(this.getClass().getSimpleName(), e.getMessage());
         }
     }
 
-    public static byte[] extractBytes(File file) throws IOException {
+    private static byte[] getBytes(File file) throws Exception {
         ByteArrayOutputStream stream = new ByteArrayOutputStream();
         byte[] buffer = new byte[1024];
         FileInputStream fis = new FileInputStream(file);
@@ -58,8 +50,8 @@ public class Communication {
             while ((i = fis.read(buffer)) != -1) {
                 stream.write(buffer, 0, i);
             }
-
-        } catch (IOException ex) {
+        } catch (Exception e) {
+            Log.e("getBytes function", e.getMessage());
         }
         return stream.toByteArray();
     }
