@@ -1,5 +1,6 @@
 package com.example.daniel.imageserviceapp;
 
+import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.Service;
 import android.content.BroadcastReceiver;
@@ -18,7 +19,7 @@ import android.support.v4.app.NotificationCompat;
 import android.widget.Toast;
 
 import java.io.File;
-import java.util.ArrayList;
+import java.util.LinkedList;
 import java.util.List;
 
 public class ImageService extends Service {
@@ -34,20 +35,19 @@ public class ImageService extends Service {
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startID) {
-        Toast.makeText(this, "Image service started...", Toast.LENGTH_LONG).show();
+        //show start message
+        Toast.makeText(this, "Starting Service", Toast.LENGTH_LONG).show();
         this.broadcastReceiver = new BroadcastReceiver() {
             @RequiresApi(api = Build.VERSION_CODES.O)
             @Override
             public void onReceive(Context context, Intent intent) {
-                WifiManager wifiManager = (WifiManager) context.getSystemService(Context.WIFI_SERVICE);
+                //WifiManager wifiManager = (WifiManager) context.getSystemService(Context.WIFI_SERVICE);
                 NetworkInfo networkInfo = intent.getParcelableExtra(WifiManager.EXTRA_NETWORK_INFO);
-                if (networkInfo != null) {
-                    if (networkInfo.getType() == ConnectivityManager.TYPE_WIFI) {
-                        if (networkInfo.getState() == NetworkInfo.State.CONNECTED) {
-                            //start transfer
-                            startTransfer(context);
-                        }
-                    }
+                //check wifi is connected
+                if (networkInfo != null &&
+                        networkInfo.getType() == ConnectivityManager.TYPE_WIFI &&
+                        networkInfo.getState() == NetworkInfo.State.CONNECTED) {
+                    startTransfer(context);
                 }
             }
         };
@@ -55,112 +55,95 @@ public class ImageService extends Service {
         return START_STICKY;
     }
 
-    /**
-     * startTransfer function.
-     * starts transfer the photos.
-     *
-     * @param context
-     */
     @RequiresApi(api = Build.VERSION_CODES.O)
     private void startTransfer(Context context) {
-        //set notification progress bar
+        //set id
+        final int id = 1;
+        //set builder
         final NotificationCompat.Builder builder = new NotificationCompat.Builder(context, "default");
-        final int notifyId = 1;
+        //set notification manager
         final NotificationManager NM = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+        //set channel
+        NotificationChannel channel = new NotificationChannel("default", "Progress bar", NotificationManager.IMPORTANCE_DEFAULT);
+        channel.setDescription("Image Service Progress Bar");
+        NM.createNotificationChannel(channel);
         builder.setSmallIcon(R.drawable.ic_launcher_background);
-        builder.setContentTitle("Passing images...");
-        builder.setContentText("Passing in progress...");
+        builder.setContentTitle("Transferring Pictures...");
+        builder.setContentText("Passing...");
         //start the transfer
         new Thread(new Runnable() {
             @Override
             public void run() {
-                try {
-                    int barState = 0;
-                    updatePicsFilesList();
-                    for (File file : files) {
-                        //crete new tcp client to talk with server
-                        Communication communication = new Communication(file);
-                        //talk to image service and send him the photo
+                //set percent of the bar
+                int percent = 0;
+                updatePictures();
+                for (File file : files) {
+                    //set communication
+                    Communication communication = new Communication(file);
+                    try {
                         communication.startCommunication();
-                        //update the progress bar
-                        barState = barState + 100 / files.size();
-                        builder.setProgress(100, barState, false);
-                        NM.notify(notifyId, builder.build());
-
+                    } catch (Exception e) {
                     }
-                    //finish
-                    builder.setProgress(0, 0, false);
-                    builder.setContentTitle("Finished transfer!");
-                    builder.setContentText("Finished transfer!");
-                    NM.notify(notifyId, builder.build());
-                } catch (Exception ex) {
+                    //monitor the percent of the bar
+                    percent = percent + 100 / files.size();
+                    builder.setProgress(100, percent, false);
+                    NM.notify(id, builder.build());
                 }
+                //finish
+                builder.setProgress(0, 0, false);
+                builder.setContentTitle("Done!");
+                builder.setContentText("Done!");
+                NM.notify(id, builder.build());
             }
         }).start();
     }
 
-    /**
-     * onCreate function.
-     * defines what happens when service is on.
-     */
     @Override
     public void onCreate() {
         super.onCreate();
-        //brodcast reciver issues ..
         this.intentFilter.addAction("android.net.wifi.supplicant.CONNECTION_CHANGE");
         this.intentFilter.addAction("android.net.wifi.STATE_CHANGE");
     }
 
-    /**
-     * onDestroy function.
-     * defines what happens when service is destroyed.
-     */
     @Override
     public void onDestroy() {
-        Toast.makeText(this, "Image service stopped...", Toast.LENGTH_LONG).show();
+        Toast.makeText(this, "Stoping Service", Toast.LENGTH_LONG).show();
         this.unregisterReceiver(this.broadcastReceiver);
     }
 
-    /**
-     * getOneFile function.
-     * gets one file from dcim
-     *
-     * @param dir           - dir of files
-     * @param picsFilesList - list of pic files
-     */
-    public void getOneFile(File dir, List<File> picsFilesList) {
-        File[] dirFiles = dir.listFiles();
-        int len = dirFiles.length;
-        for (int i = 0; i < len; i++) {
-            if (dirFiles[i].isDirectory()) {
-                getOneFile(dirFiles[i], picsFilesList);
-            } else if (dirFiles[i].toString().contains(".jpg")) {
-                picsFilesList.add(dirFiles[i]);
+    public void getOneFile(File directory, List<File> pictures) {
+        File[] filesArray = directory.listFiles();
+        for (File file : filesArray) {
+            if (file.isDirectory()) {
+                getOneFile(file, pictures);
+            } else if (file.toString().contains(".jpg")) {
+                pictures.add(file);
             }
         }
     }
 
-    /**
-     * updatePicsFilesList function.
-     * updates files list (our member)
-     */
-    public void updatePicsFilesList() {
+    public void updatePictures() {
+        List<File> pictures = new LinkedList<File>();
         File dcim = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DCIM);
-        //get the dirs
-        File[] fileOrDir = dcim.listFiles();
-        List<File> picsFilesList = new ArrayList<File>();
-        int len = fileOrDir.length;
-        if (fileOrDir != null) {
-            for (int i = 0; i < len; i++) {
-                //check if dir
-                if (fileOrDir[i].isDirectory()) {
-                    getOneFile(fileOrDir[i], picsFilesList);
-                } else if (fileOrDir[i].toString().contains(".jpg")) { //check if file
-                    picsFilesList.add(fileOrDir[i]);
+        //set the files
+        File[] filesArray = dcim.listFiles();
+        //check filesArray isn't null
+        if (filesArray != null) {
+            //check for each file in files array
+            for (File file : filesArray) {
+                //for directory
+                if (file.isDirectory()) {
+                    //search for picutres there
+                    getOneFile(file, pictures);
+                }
+                //for picture
+                else if (file.toString().contains(".jpg")) {
+                    //add it
+                    pictures.add(file);
                 }
             }
         }
-        //update the member
-        files = picsFilesList;
+        //set files
+        this.files = pictures;
     }
 }

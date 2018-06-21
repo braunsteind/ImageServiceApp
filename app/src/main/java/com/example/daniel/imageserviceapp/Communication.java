@@ -1,5 +1,7 @@
 package com.example.daniel.imageserviceapp;
 
+import android.app.NotificationManager;
+import android.support.v4.app.NotificationCompat;
 import android.util.Log;
 
 import java.io.ByteArrayOutputStream;
