@@ -21,7 +21,7 @@ public class Communication {
         try {
             InetAddress serverAddress = InetAddress.getByName("10.0.2.2");
             try {
-                Socket socket = new Socket(serverAddress, 7999);
+                Socket socket = new Socket(serverAddress, 7000);
                 OutputStream output = socket.getOutputStream();
                 InputStream input = socket.getInputStream();
                 //write to server
